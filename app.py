@@ -14,7 +14,7 @@ load_dotenv()
 
 # Force disable OpenAI usage if not intended (CrewAI sometimes defaults to it)
 if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = "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"
+    os.environ["OPENAI_API_KEY"] = "OpenAi-API-KEY"
 
 # Streamlit Page Config
 st.set_page_config(
@@ -30,7 +30,7 @@ with st.sidebar:
     st.title("🤖 Agentic Analyst")
     st.markdown("---")
     
-    api_key = st.text_input("Enter Google API Key", type="password", value="AIzaSyBxrAyChQ-7hYq7wOJJSMnzcgz1Tp4bFcg")
+    api_key = st.text_input("Enter Google API Key", type="password", value="Gemini-Api-Key")
     
     uploaded_file = st.file_uploader("Upload Dataset (CSV/Excel)", type=['csv', 'xlsx'])
     
