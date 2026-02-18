@@ -1,0 +1,8 @@
+streamlit
+pandas
+openpyxl
+plotly
+crewai
+langchain_google_genai
+python-dotenv
+tabulate
