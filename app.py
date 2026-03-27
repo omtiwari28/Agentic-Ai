@@ -12,13 +12,9 @@ import google.generativeai as genai
 # Load environment variables
 load_dotenv()
 
-# Force disable OpenAI usage if not intended (CrewAI sometimes defaults to it)
-if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = "OpenAi-API-KEY"
-
 # Streamlit Page Config
 st.set_page_config(
-    page_title="Agentic Data Analyst",
+    page_title="AI-Powered Business Intelligence Platform",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -30,7 +26,7 @@ with st.sidebar:
     st.title("🤖 Agentic Analyst")
     st.markdown("---")
     
-    api_key = st.text_input("Enter Google API Key", type="password", value="Gemini-Api-Key")
+    api_key = st.text_input("Enter Google API Key", type="password", value="[ENCRYPTION_KEY]")
     
     uploaded_file = st.file_uploader("Upload Dataset (CSV/Excel)", type=['csv', 'xlsx'])
     
@@ -74,21 +70,27 @@ def create_crew(df_head, df_stats, api_key):
 
     # Task 1: Analyze Data
     analysis_task = Task(
-        description=f"""
-        Analyze the following dataset summary and statistics:
-        
-        Head of Data:
+    description=f"""
+        You are a senior data analyst.
+
+        Analyze the dataset and provide a structured report.
+
+        Return output in this format:
+
+        ## 📊 Data Summary
+        - Key variables
+        - Dataset overview
+
+        ## 🔍 Key Insights
+        - 3-5 important trends
+        - Any anomalies
+
+        ## 💡 Business Recommendations
+        - 3 actionable suggestions
+
+        Data:
         {df_head}
-        
-        Statistics:
         {df_stats}
-        
-        Find the factors that are affecting the data and try to hit the output accuracy to 90 percent by creating charts and graphs.
-        Use a Step by step approach to ensure accuracy and completeness.
-        the procedure is as follows:
-        1. Decompose the data into smaller, more manageable chunks.
-        2. Analyze each chunk separately.
-        3. Combine the results to get a complete picture.
         """,
         agent=analyst,
         expected_output="A list of 3-5 key trends and patterns found in the data data. And try to increase the profit as much as one can"
@@ -107,7 +109,10 @@ def create_crew(df_head, df_stats, api_key):
         3. Combine the results to get a complete picture.
         """,
         agent=strategist,
-        expected_output="A strategic report with 3 concrete actions and their rationale. And the best way to make profit"
+        expected_output="""Return output in this format:
+        ## Data Summary
+        ## Key Insights
+        ## Business Recommendations"""
     )
 
     crew = Crew(
@@ -136,12 +141,21 @@ if uploaded_file is not None:
         st.success("File Uploaded Successfully!")
         
         # Create Tabs
-        tab1, tab2, tab3 = st.tabs(["📊 Data Overview", "🤖 AI Insights", "📈 Visualizations"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Overview", "🤖 AI Insights", "📈 Visualizations", "💬 Chat with Data"])
         
         # TAB 1: Data Overview
         with tab1:
             st.subheader("Data Preview")
             st.dataframe(df.head())
+            
+            # Download Data Button
+            csv_data = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Data as CSV",
+                data=csv_data,
+                file_name="dataset_export.csv",
+                mime="text/csv"
+            )
             
             st.subheader("Statistics")
             st.dataframe(df.describe())
@@ -151,7 +165,7 @@ if uploaded_file is not None:
             st.markdown("### 🤖 Intelligent Analysis")
             st.markdown("Click the button below to launch the AI Crew.")
             
-            if st.button("🚀 Run AI Analysis Crew"):
+            if st.button("🚀 Generate Business Insights Report"):
                 if not api_key:
                     st.error("Please enter your Google API Key in the sidebar.")
                 else:
@@ -167,10 +181,7 @@ if uploaded_file is not None:
                         crew = create_crew(df_head_str, df_stats_str, api_key)
                         try:
                             result = crew.kickoff()
-                            st.success("Analysis Complete!")
-                            st.markdown("### 📝 Strategic Report")
-                            with st.container(border=True):
-                                st.markdown(result)
+                            st.session_state["ai_report"] = result
                         except Exception as e:
                             st.error(f"An error occurred: {e}")
                             if "404" in str(e) or "not found" in str(e).lower():
@@ -181,6 +192,20 @@ if uploaded_file is not None:
                                     st.write("Available Models:", models)
                                 except Exception as inner_e:
                                     st.error(f"Could not list models: {inner_e}")
+            
+            if "ai_report" in st.session_state:
+                st.success("Analysis Complete!")
+                st.markdown("### 📝 Strategic Report")
+                with st.container(border=True):
+                    st.markdown(st.session_state["ai_report"])
+                    
+                # Download Report Button
+                st.download_button(
+                    label="📥 Download Report",
+                    data=str(st.session_state["ai_report"]),
+                    file_name="Strategic_Report.txt",
+                    mime="text/plain"
+                )
         
         # TAB 3: Visualizations
         with tab3:
@@ -229,6 +254,52 @@ if uploaded_file is not None:
                 corr = df[numeric_cols].corr()
                 fig_corr = px.imshow(corr, text_auto=True, title="Correlation Matrix", height=800)
                 st.plotly_chart(fig_corr, use_container_width=True)
+
+        # TAB 4: Chat with Data
+        with tab4:
+            st.subheader("💬 Ask Questions About Your Data")
+            st.markdown("Type a question about the dataset, and the AI will analyze it.")
+            
+            user_question = st.text_input("Your Question:")
+            
+            if st.button("Get Answer"):
+                if not api_key:
+                    st.error("Please enter your Google API Key in the sidebar.")
+                elif not user_question:
+                    st.warning("Please enter a question.")
+                else:
+                    with st.spinner("AI is thinking..."):
+                        # Use Gemma 3 27b specifically for answering questions
+                        llm = ChatGoogleGenerativeAI(
+                            model="gemma-3-27b-it",
+                            verbose=True,
+                            temperature=0.5,
+                            google_api_key=api_key
+                        )
+                        
+                        # Provide schema and a tiny sample to the LLM to understand data
+                        schema = df.dtypes.to_string()
+                        sample = df.head(5).to_markdown()
+                        
+                        prompt = f"""
+                        You are a data analysis expert. Answer the user's question about the dataset.
+                        
+                        Here is the schema of the dataset:
+                        {schema}
+                        
+                        Here is a sample of the first 5 rows:
+                        {sample}
+                        
+                        User Question: {user_question}
+                        """
+                        try:
+                            # Invoke LLM
+                            response = llm.invoke(prompt)
+                            st.markdown("### Answer")
+                            with st.container(border=True):
+                                st.markdown(response.content)
+                        except Exception as e:
+                            st.error(f"Failed to get answer: {e}")
 
     except Exception as e:
         st.error(f"Error loading file: {e}")
