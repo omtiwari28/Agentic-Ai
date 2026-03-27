@@ -3,7 +3,7 @@ import os
 
 # Set the key directly or from env
 # I will use the key the user pasted in app.py
-os.environ["GOOGLE_API_KEY"] = "AIzaSyBxrAyChQ-7hYq7wOJJSMnzcgz1Tp4bFcg"
+os.environ["GOOGLE_API_KEY"] = "Your_GOOGLE_API_KEY"
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 print("List of available models:")
